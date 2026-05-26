@@ -1,5 +1,198 @@
 import gurobipy as grb
 from gurobipy import GRB
+import xml.etree.ElementTree as ET
+from xml.dom import minidom
+from datetime import datetime, timedelta
+
+
+# ==========================================================
+# OUTILS XML
+# ==========================================================
+
+def prettify(elem):
+    rough_string = ET.tostring(elem, "utf-8")
+    reparsed = minidom.parseString(rough_string)
+    return reparsed.toprettyxml(indent="    ")
+
+
+def day_to_date(start_date, day):
+    return (
+        start_date + timedelta(days=day)
+    ).strftime("%Y-%m-%d")
+
+
+# ==========================================================
+# EXPORT .ROS
+# ==========================================================
+
+def export_solution_to_ros(
+    filename,
+    start_date,
+    horizon,
+    employees,
+    postes,
+    duree_poste,
+    ujp,
+    assignments
+):
+
+    root = ET.Element(
+        "SchedulingPeriod",
+        {
+            "xmlns:xsi":
+                "http://www.w3.org/2001/XMLSchema-instance",
+
+            "xsi:noNamespaceSchemaLocation":
+                "SchedulingPeriod-3.0.xsd"
+        }
+    )
+
+    # ======================================================
+    # DATES
+    # ======================================================
+
+    ET.SubElement(
+        root,
+        "StartDate"
+    ).text = start_date.strftime("%Y-%m-%d")
+
+    ET.SubElement(
+        root,
+        "EndDate"
+    ).text = (
+        start_date + timedelta(days=horizon - 1)
+    ).strftime("%Y-%m-%d")
+
+    # ======================================================
+    # SHIFT TYPES
+    # ======================================================
+
+    shift_types = ET.SubElement(root, "ShiftTypes")
+
+    for p in postes:
+
+        shift = ET.SubElement(
+            shift_types,
+            "Shift",
+            {"ID": p}
+        )
+
+        ET.SubElement(
+            shift,
+            "Label"
+        ).text = p
+
+        ET.SubElement(
+            shift,
+            "Duration"
+        ).text = str(duree_poste[p])
+
+    # ======================================================
+    # EMPLOYEES
+    # ======================================================
+
+    employees_xml = ET.SubElement(
+        root,
+        "Employees"
+    )
+    for e in employees:
+
+        emp = ET.SubElement(
+            employees_xml,
+            "Employee",
+            {"ID": e}
+        )
+
+        ET.SubElement(
+            emp,
+            "Name"
+        ).text = e
+
+    # ======================================================
+    # COVER REQUIREMENTS
+    # ======================================================
+
+    cover_xml = ET.SubElement(
+        root,
+        "CoverRequirements"
+    )
+
+    for j in range(horizon):
+
+        day_xml = ET.SubElement(
+            cover_xml,
+            "CoverReq"
+        )
+
+        ET.SubElement(
+            day_xml,
+            "Date"
+        ).text = day_to_date(start_date, j)
+
+        for p in postes:
+
+            cover = ET.SubElement(
+                day_xml,
+                "Cover"
+            )
+
+            ET.SubElement(
+                cover,
+                "Shift"
+            ).text = p
+
+            ET.SubElement(
+                cover,
+                "CoverResource"
+            ).text = str(ujp[(j, p)])
+
+    # ======================================================
+    # ASSIGNMENTS
+    # ======================================================
+
+    assignments_xml = ET.SubElement(
+    root,
+    "FixedAssignments"
+)
+
+
+    for (e, j, p) in assignments:
+
+        employee_xml = ET.SubElement(
+            assignments_xml,
+            "Employee"
+        )
+
+        ET.SubElement(
+            employee_xml,
+            "EmployeeID"
+        ).text = e
+
+        assign_xml = ET.SubElement(
+            employee_xml,
+            "Assign"
+        )
+
+        ET.SubElement(
+            assign_xml,
+            "Date"
+        ).text = day_to_date(start_date, j)
+
+        ET.SubElement(
+            assign_xml,
+            "Shift"
+        ).text = p
+
+    # ======================================================
+    # SAVE
+    # ======================================================
+
+    xml_string = prettify(root)
+
+    with open(filename, "w", encoding="utf-8") as f:
+        f.write(xml_string)
+
+    print(f"\n[OK] Fichier .ros genere : {filename}")
 
 # Données 
 horizon = 14
@@ -243,8 +436,40 @@ if model.status == GRB.OPTIMAL:
             deficit = int(y_minus[j, p].X)
             surplus = int(y_plus[j, p].X)
             status = "✓" if deficit == 0 and surplus == 0 else "✗"
-            print(f"  Poste {p}: {nb_assigned}/{required} (déficit={deficit}, surplus={surplus}) {status}")
+            #print(f"  Poste {p}: {nb_assigned}/{required} (déficit={deficit}, surplus={surplus}) {status}")
 else:
     print(f"Statut de résolution : {model.status}")
     if model.status == GRB.INFEASIBLE:
         print("Le modèle est infaisable")
+
+if model.status == GRB.OPTIMAL:
+        # =====================================================
+    # EXTRACTION DES AFFECTATIONS
+    # =====================================================
+
+    assignments = []
+
+    for e in employees:
+        for j in jours:
+            for p in postes:
+
+                if x[e, j, p].X > 0.5:
+
+                    assignments.append((e, j, p))
+
+    # =====================================================
+    # EXPORT XML .ROS
+    # =====================================================
+
+    start_date = datetime(2026, 5, 4)
+
+    export_solution_to_ros(
+        filename="solution.ros",
+        start_date=start_date,
+        horizon=horizon,
+        employees=employees,
+        postes=postes,
+        duree_poste=duree_poste,
+        ujp=ujp,
+        assignments=assignments
+    )
