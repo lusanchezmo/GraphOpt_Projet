@@ -417,7 +417,6 @@ else:
     if model.status == GRB.INFEASIBLE:
         print("Le modèle est infaisable")
 
-<<<<<<< HEAD
 if model.status == GRB.OPTIMAL:
         # =====================================================
     # EXTRACTION DES AFFECTATIONS
@@ -449,8 +448,3 @@ if model.status == GRB.OPTIMAL:
         ujp=ujp,
         assignments=assignments
     )
-=======
-# Lancement de l'audit
-if model.status == GRB.OPTIMAL:
-    verification_independante_totale(employees, jours, postes, params, mmax, duree_poste, incom, ujp, days_off, x)
->>>>>>> 78c01f84efaf1dbd8e08f28713a7ab294dcb44cf
