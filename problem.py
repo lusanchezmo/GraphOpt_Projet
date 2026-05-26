@@ -1,3 +1,6 @@
+import os
+os.environ['GRB_LICENSE_FILE'] = 'C:\\gurobi1302\\win64\\bin\\gurobi.lic' # !!! ATTENTION : change this path 
+
 import gurobipy as grb
 from gurobipy import GRB
 import xml.etree.ElementTree as ET
@@ -194,69 +197,39 @@ def export_solution_to_ros(
 
     print(f"\n[OK] Fichier .ros genere : {filename}")
 
+from verification import verification_independante_totale
+from lecture import transformer_donnees_fichier
+
+
 # Données 
-horizon = 14
+donnees = transformer_donnees_fichier('./instances/instance2.txt')
+
+# Datos transformados
+horizon = donnees['horizon']
 jours = list(range(horizon))
 weekends = list(range(horizon // 7))
-employees = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N"]
-postes = ["E", "L"]
-duree_poste = {"E": 480, "L": 480}
-incom = {'E': [], 'L': ['E']}
 
-params = {
-    'A': [3360, 4320, 5, 2, 2, 1], 'B': [3360, 4320, 5, 2, 2, 1],
-    'C': [3360, 4320, 5, 2, 2, 1], 'D': [3360, 4320, 5, 2, 2, 1],
-    'E': [3360, 4320, 5, 2, 2, 1], 'F': [3360, 4320, 5, 2, 2, 1],
-    'G': [3360, 4320, 5, 2, 2, 1], 'H': [3360, 4320, 5, 2, 2, 1],
-    'I': [3360, 4320, 5, 2, 2, 1], 'J': [3360, 4320, 5, 2, 2, 1],
-    'K': [1200, 2160, 5, 1, 1, 1], 'L': [1200, 2160, 5, 1, 1, 1],
-    'M': [1200, 2160, 5, 1, 1, 1], 'N': [1200, 2160, 5, 1, 1, 1]
-}
-mmax = {
-    'A': {'E': 14, 'L': 14}, 'B': {'E': 14, 'L': 14}, 'C': {'E': 14, 'L': 14},
-    'D': {'E': 14, 'L': 0},  'E': {'E': 0,  'L': 14}, 'F': {'E': 14, 'L': 14},
-    'G': {'E': 14, 'L': 14}, 'H': {'E': 14, 'L': 14}, 'I': {'E': 14, 'L': 14},
-    'J': {'E': 14, 'L': 14}, 'K': {'E': 0,  'L': 14}, 'L': {'E': 0,  'L': 14},
-    'M': {'E': 14, 'L': 14}, 'N': {'E': 14, 'L': 14}
-}
-ujp = {
-    (0,'E'):4, (0,'L'):4, (1,'E'):4, (1,'L'):3, (2,'E'):3, (2,'L'):6,
-    (3,'E'):5, (3,'L'):4, (4,'E'):3, (4,'L'):4, (5,'E'):5, (5,'L'):5,
-    (6,'E'):5, (6,'L'):5, (7,'E'):3, (7,'L'):2, (8,'E'):4, (8,'L'):4,
-    (9,'E'):4, (9,'L'):4, (10,'E'):4, (10,'L'):3, (11,'E'):2, (11,'L'):3,
-    (12,'E'):4, (12,'L'):3, (13,'E'):3, (13,'L'):5
-}
-
-days_off = {'A': [3], 'B': [1],'C': [2], 'D': [12], 'E': [1], 'F': [13], 'G': [9], 'H': [3], 'I': [0], 'J': [8], 'K': [5], 'L': [2], 'M': [8], 'N': [6]}
+employees = donnees['employees']
+postes = donnees['postes']
+duree_poste = donnees['duree_poste']
+incom = donnees['incom']
+params = donnees['params']
+mmax = donnees['mmax']
+ujp = donnees['ujp']
+days_off = donnees['days_off']
 
 # Poids pour le manque et l'excédent de personnel
-v_min = {(j, p): 100 for j in jours for p in postes}  # poids manque
-v_max = {(j, p): 1 for j in jours for p in postes}    # poids excédent
+v_min = {(j, p): 100 for j in jours for p in postes}
+v_max = {(j, p): 1 for j in jours for p in postes}
 
 # Demandes de postes (shift_on_requests)
-shift_on_requests = [
-    ('A',5,'L',1), ('A',6,'L',1), ('A',7,'L',1), ('A',8,'L',1), ('A',9,'L',1),
-    ('B',7,'E',1), ('B',8,'E',1), ('B',9,'E',1), ('B',10,'E',1),
-    ('C',8,'E',1), ('C',9,'E',1), ('C',10,'E',1), ('C',11,'E',1),
-    ('D',1,'E',1), ('D',2,'E',1), ('D',3,'E',1),
-    ('E',3,'L',1), ('E',4,'L',1), ('E',5,'L',1), ('E',6,'L',1), ('E',7,'L',1),
-    ('E',12,'L',2), ('E',13,'L',2),
-    ('F',3,'L',3), ('F',4,'L',3), ('F',5,'L',3),
-    ('I',2,'L',3), ('I',3,'L',3), ('I',12,'E',2),
-    ('J',11,'L',3),
-    ('K',7,'L',1), ('K',8,'L',1), ('K',9,'L',1),
-    ('L',3,'L',1), ('L',4,'L',1), ('L',10,'L',3), ('L',11,'L',3), ('L',12,'L',3), ('L',13,'L',3),
-    ('M',3,'L',1), ('M',4,'L',1), ('M',5,'L',1), ('M',6,'L',1), ('M',7,'L',1),
-    ('N',0,'E',2), ('N',1,'E',2), ('N',2,'E',2), ('N',8,'E',3), ('N',9,'E',3), ('N',10,'E',3)
-]
+shift_on_requests = donnees['shift_on_requests']
 
 # Demandes de ne PAS travailler (shift_off_requests)
-shift_off_requests = [
-    ('G',3,'E',2), ('G',4,'E',2), ('G',5,'E',2), ('G',6,'E',2), ('G',7,'E',2),
-    ('H',1,'L',2),
-    ('J',1,'E',1), ('J',2,'E',1), ('J',3,'E',1), ('J',4,'E',1), ('J',5,'E',1),
-    ('M',11,'L',1)
-]
+shift_off_requests = donnees['shift_off_requests']
+
+
+
 
 # Modèle
 model = grb.Model("Probleme")
@@ -422,7 +395,9 @@ if model.status == GRB.OPTIMAL:
         line = f"Employé {e:2s}: "
         for j in jours:
             assigned = [p for p in postes if x[e, j, p].X > 0.5]
-            line += f"{assigned[0] if assigned else '--':2s} "
+            days_off2 = j in days_off.get(e, [])
+            line += "XX " if days_off2 else f"{assigned[0] if assigned else '--':2s} "
+            #line += f"{assigned[0] if assigned else '--':2s} "
         print(line)
     
     print(f"\n{'='*70}")
@@ -442,6 +417,7 @@ else:
     if model.status == GRB.INFEASIBLE:
         print("Le modèle est infaisable")
 
+<<<<<<< HEAD
 if model.status == GRB.OPTIMAL:
         # =====================================================
     # EXTRACTION DES AFFECTATIONS
@@ -473,3 +449,8 @@ if model.status == GRB.OPTIMAL:
         ujp=ujp,
         assignments=assignments
     )
+=======
+# Lancement de l'audit
+if model.status == GRB.OPTIMAL:
+    verification_independante_totale(employees, jours, postes, params, mmax, duree_poste, incom, ujp, days_off, x)
+>>>>>>> 78c01f84efaf1dbd8e08f28713a7ab294dcb44cf
