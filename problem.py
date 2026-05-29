@@ -190,6 +190,9 @@ for e, j, p, weight in shift_off_requests:
 # Définir l'objectif
 model.setObjective(objective, GRB.MINIMIZE)
 
+#Temps maximum de résolution (en secondes)
+model.setParam('TimeLimit', 600)  # 5 minutes
+
 # Résoudre le modèle
 model.optimize()
 
@@ -229,10 +232,6 @@ else:
         print("Le modèle est infaisable")
 
 
-# Lancement de l'audit
-if model.status == GRB.OPTIMAL:
-    verification_independante_totale(employees, jours, postes, params, mmax, duree_poste, incom, ujp, days_off, x)
-    
 #_________________________________________debut_sauvegarde_______________________________________________
 
 # ==========================================================
