@@ -231,6 +231,10 @@ else:
     if model.status == GRB.INFEASIBLE:
         print("Le modèle est infaisable")
 
+# Lancement de l'audit
+if model.status == GRB.OPTIMAL:
+    verification_independante_totale(employees, jours, postes, params, mmax, duree_poste, incom, ujp, days_off, x)
+
 
 #_________________________________________debut_sauvegarde_______________________________________________
 
